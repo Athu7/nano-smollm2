@@ -77,3 +77,17 @@ class MHA(nn.Module):
         attn_out = attn_out.transpose(1,2).contiguous().view(B,T,C)
         attn_out = self.o_proj(attn_out)
         return attn_out
+
+class FFN(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.up_proj = nn.Linear(config.n_embd, config.n_hidden, bias = config.bias, dtype = config.dtype)
+        self.down_proj = nn.Linear(config.n_hidden, config.n_embd, bias = config.bias, dtype = config.dtype)
+        self.gate_proj = nn.Linear(config.n_embd, config.n_hidden, bias = config.bias, dtype = config.dtype)
+
+        # TODO: find out why our implementation doesn't work
+        # self.act_fn = SiLU()
+        self.act_fn = torch.nn.SiLU() 
+    def forward(self, x):
+        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
+        return down_proj
