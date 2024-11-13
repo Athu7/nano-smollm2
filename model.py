@@ -91,3 +91,16 @@ class FFN(nn.Module):
     def forward(self, x):
         down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
         return down_proj
+
+class RMSNorm(nn.Module):
+    def __init__(self, config: SmolLM2Config):
+
+        super().__init__()
+        self.embd_dim = config.n_embd
+        self.eps = config.norm_eps # (1)
+        self.weight = nn.Parameter(torch.ones(self.embd_dim, dtype=config.dtype)) # (C)
+
+    def forward(self, x):
+        means = x.pow(2).mean(dim=-1, keepdim=True) # (B, T, 1)
+        x_normed = x * torch.rsqrt(means + self.eps) # (B, T, C) / root((B, T, 1) + (1)) -> (B, T, C)
+        return (x_normed * self.weight).to(dtype=x.dtype) # (B, T, C) * (C) -> (B, T, C) 
