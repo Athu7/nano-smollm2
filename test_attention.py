@@ -3,26 +3,28 @@ import torch.nn as nn
 from model import SmolLM2Config, pre_compute_rope, apply_rope, MHA
 from transformers.models.llama.modeling_llama import LlamaSdpaAttention, LlamaConfig
 
-
-    
-
 @torch.inference_mode()
 def test_attention_smollm2():
-    # initialize our attention
-    config = SmolLM2Config()
-    attn = MHA(config=config)
+    torch.manual_seed(123)
 
-    # initialize hf attention
+    # initialize configs
+    config = SmolLM2Config()
     smollm2_config_hf = LlamaConfig.from_pretrained("HuggingFaceTB/SmolLM2-135M-Instruct")
+    torch.set_default_dtype(config.dtype) # so that hf modules are also use the dtype that we are using
+
+    # initialize our attention
+    attn = MHA(config=config)
+    
+    # initialize hf attention
     attn_hf = LlamaSdpaAttention(config = smollm2_config_hf)
 
     # load same weights in both implementations
     model_data = torch.load("model.pt")
     hf_dic = {
-    "q_proj.weight": model_data.get("model.layers.0.self_attn.q_proj.weight"),
-    "k_proj.weight": model_data.get("model.layers.0.self_attn.k_proj.weight"),
-    "v_proj.weight": model_data.get("model.layers.0.self_attn.v_proj.weight"),
-    "o_proj.weight": model_data.get("model.layers.0.self_attn.o_proj.weight"),
+        "q_proj.weight": model_data.get("model.layers.0.self_attn.q_proj.weight"),
+        "k_proj.weight": model_data.get("model.layers.0.self_attn.k_proj.weight"),
+        "v_proj.weight": model_data.get("model.layers.0.self_attn.v_proj.weight"),
+        "o_proj.weight": model_data.get("model.layers.0.self_attn.o_proj.weight"),
     }
 
     dic = {
