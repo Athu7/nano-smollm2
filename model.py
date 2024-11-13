@@ -12,7 +12,7 @@ class SmolLM2Config:
     n_head:int = 9
     n_kv_heads:int = 3
     norm_eps: float = 1e-05
-    dtype: torch.dtype = torch.float32
+    dtype: torch.dtype = torch.bfloat16
     rope_theta:int = 100000
     vocab_size: int = 49152    
 
@@ -25,7 +25,7 @@ def pre_compute_rope(config:SmolLM2Config):
     pos_thetas = torch.concatenate([pos_thetas, pos_thetas], dim = -1 )
     cos = torch.cos(pos_thetas)
     sin = torch.sin(pos_thetas)
-    return cos, sin
+    return cos.to(dtype = config.dtype), sin.to(dtype = config.dtype)
 def apply_rope(x:torch.Tensor, cos:torch.Tensor, sin:torch.Tensor):
     B,n,T,h = x.shape
     x1 = x[..., :h//2]
