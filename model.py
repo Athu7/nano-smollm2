@@ -1,6 +1,8 @@
+from dataclasses import dataclass
+
 import torch
 import torch.nn as nn
-from dataclasses import dataclass
+
 
 @dataclass
 class SmolLM2Config:
@@ -117,3 +119,20 @@ class Block(nn.Module):
         x = x + self.self_attn(self.input_layernorm(x))
         x = x + self.mlp(self.post_attention_layernorm(x))
         return x
+
+class SmolLM2(nn.Module):
+    
+    def __init__(self, config:SmolLM2Config):
+        super().__init__()
+        self.embed_tokens = nn.Embedding(config.vocab_size, config.n_embd, dtype = config.dtype)
+        self.layers = nn.ModuleList([Block(config = config) for _ in range(config.n_layer)])
+        self.norm = RMSNorm(config = config)
+        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, dtype = config.dtype, bias= config.bias) 
+
+    def forward(self, x:torch.Tensor):
+        hidden = self.embed_tokens(x)
+        for layer in self.layers:
+            hidden = layer(hidden)
+        hidden = self.norm(hidden)
+        logits = self.lm_head(hidden)
+        return logits 
