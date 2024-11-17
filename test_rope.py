@@ -21,7 +21,8 @@ def apply_rope(x:torch.Tensor, cos:torch.Tensor, sin:torch.Tensor):
     return roped.to(dtype=x.dtype)
 
 @torch.inference_mode()
-def test_rope_smollm2(config):
+def test_rope_smollm2():
+    config = SmolLM2Config()
     head_dim = config.n_embd // config.n_head 
     rope_theta = config.rope_theta
     rot_emb = LlamaRotaryEmbedding(head_dim, scaling_factor=None, base=rope_theta)
