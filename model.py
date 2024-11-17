@@ -108,12 +108,12 @@ class RMSNorm(nn.Module):
 class Block(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.mha = MHA(config = config)
-        self.rms1 = RMSNorm(config = config)
-        self.ffn = FFN(config = config)
-        self.rms2 = RMSNorm(config = config)
+        self.self_attn = MHA(config = config)
+        self.input_layernorm = RMSNorm(config = config)
+        self.mlp = FFN(config = config)
+        self.post_attention_layernorm = RMSNorm(config = config)
     
     def forward(self, x:torch.Tensor):
-        x = x + self.mha(self.rms1(x))
-        x = x + self.ffn(self.rms2(x))
+        x = x + self.self_attn(self.input_layernorm(x))
+        x = x + self.mlp(self.post_attention_layernorm(x))
         return x
