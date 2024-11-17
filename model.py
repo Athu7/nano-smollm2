@@ -45,7 +45,7 @@ class MHA(nn.Module):
         self.k_proj = nn.Linear(self.config.n_embd, self.config.n_kv_heads * self.head_dim, bias = False, dtype = config.dtype)
         self.v_proj = nn.Linear(self.config.n_embd, self.config.n_kv_heads * self.head_dim, bias = False, dtype = config.dtype)
         self.o_proj = nn.Linear(self.config.n_embd, self.config.n_embd, bias = False, dtype = config.dtype)
-        self.register_buffer("mask", torch.tril(torch.ones(1,1, self.config.block_size, self.config.block_size)))
+        self.register_buffer("mask", torch.tril(torch.ones(1,1, self.config.block_size, self.config.block_size, dtype= config.dtype)))
         cos, sin = pre_compute_rope(config = config)
         self.register_buffer("sin", sin)
         self.register_buffer("cos", cos)
@@ -104,3 +104,16 @@ class RMSNorm(nn.Module):
         means = x.pow(2).mean(dim=-1, keepdim=True) # (B, T, 1)
         x_normed = x * torch.rsqrt(means + self.eps) # (B, T, C) / root((B, T, 1) + (1)) -> (B, T, C)
         return (x_normed * self.weight).to(dtype=x.dtype) # (B, T, C) * (C) -> (B, T, C) 
+    
+class Block(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.mha = MHA(config = config)
+        self.rms1 = RMSNorm(config = config)
+        self.ffn = FFN(config = config)
+        self.rms2 = RMSNorm(config = config)
+    
+    def forward(self, x:torch.Tensor):
+        x = x + self.mha(self.rms1(x))
+        x = x + self.ffn(self.rms2(x))
+        return x
