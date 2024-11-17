@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model import SmolLM2Config, FFN, MHA, RMSNorm
+from model import SmolLM2Config, Block
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer, LlamaConfig
 
 
@@ -13,38 +13,26 @@ def test_decoder():
     config = SmolLM2Config()
     config_hf = LlamaConfig.from_pretrained("HuggingFaceTB/SmolLM2-135M-Instruct")
     torch.set_default_dtype(config.dtype) # so that hf modules are also use the dt
-    class Block(nn.Module):
-        def __init__(self, config):
-            super().__init__()
-            self.mha = MHA(config = config)
-            self.rms1 = RMSNorm(config = config)
-            self.ffn = FFN(config = config)
-            self.rms2 = RMSNorm(config = config)
-        
-        def forward(self, x:torch.Tensor):
-            x = x + self.mha(self.rms1(x))
-            x = x + self.ffn(self.rms2(x))
-            return x
 
     block = Block(config = config)
-    config_hf._attn_implementation = "sdpa"
+    config_hf._attn_implementation = "sdpa" # as we are using torch's sdpa in our implementation as well
     block_hf = LlamaDecoderLayer(config = config_hf, layer_idx= None)
     model_data = torch.load("model.pt")
     model_data.keys()
     layer = 2
     dic = {
-        "mha.q_proj.weight": model_data.get(f"model.layers.{layer}.self_attn.q_proj.weight"),
-        "mha.k_proj.weight": model_data.get(f"model.layers.{layer}.self_attn.k_proj.weight"),
-        "mha.v_proj.weight": model_data.get(f"model.layers.{layer}.self_attn.v_proj.weight"),
-        "mha.o_proj.weight": model_data.get(f"model.layers.{layer}.self_attn.o_proj.weight"),
-        "mha.mask": block.mha.mask,
-        "mha.sin": block.mha.sin,
-        "mha.cos": block.mha.cos,
-        "ffn.gate_proj.weight": model_data.get(f"model.layers.{layer}.mlp.gate_proj.weight"),
-        "ffn.up_proj.weight": model_data.get(f"model.layers.{layer}.mlp.up_proj.weight"),
-        "ffn.down_proj.weight": model_data.get(f"model.layers.{layer}.mlp.down_proj.weight"),
-        "rms1.weight": model_data.get(f"model.layers.{layer}.input_layernorm.weight"),
-        "rms2.weight": model_data.get(f"model.layers.{layer}.post_attention_layernorm.weight"),
+        "self_attn.q_proj.weight": model_data.get(f"model.layers.{layer}.self_attn.q_proj.weight"),
+        "self_attn.k_proj.weight": model_data.get(f"model.layers.{layer}.self_attn.k_proj.weight"),
+        "self_attn.v_proj.weight": model_data.get(f"model.layers.{layer}.self_attn.v_proj.weight"),
+        "self_attn.o_proj.weight": model_data.get(f"model.layers.{layer}.self_attn.o_proj.weight"),
+        "self_attn.mask": block.self_attn.mask,
+        "self_attn.sin": block.self_attn.sin,
+        "self_attn.cos": block.self_attn.cos,
+        "mlp.gate_proj.weight": model_data.get(f"model.layers.{layer}.mlp.gate_proj.weight"),
+        "mlp.up_proj.weight": model_data.get(f"model.layers.{layer}.mlp.up_proj.weight"),
+        "mlp.down_proj.weight": model_data.get(f"model.layers.{layer}.mlp.down_proj.weight"),
+        "input_layernorm.weight": model_data.get(f"model.layers.{layer}.input_layernorm.weight"),
+        "post_attention_layernorm.weight": model_data.get(f"model.layers.{layer}.post_attention_layernorm.weight"),
     }
 
     hf_dic = {
