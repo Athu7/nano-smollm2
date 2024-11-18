@@ -247,10 +247,6 @@ def test_smollm2():
     model_data = torch.load("model.pt")
     weight_names = model_data.keys()
 
-    # in case of weight tying copy the embedding weights to lm_head
-    if "model.lm_head.weight" not in weight_names:
-        model_data["model.lm_head.weight"] = model_data.get("model.embed_tokens.weight")
-
     # rename the wieght names to match hf_names so we can use load_state_dict directly 
     replace_key = lambda x: x.replace("model.", "")
     dic_keys = [i for i in model_data.keys()]
