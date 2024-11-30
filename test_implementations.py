@@ -262,34 +262,46 @@ def test_smollm2():
     logits = model(inp)
     torch.testing.assert_close(logits_hf, logits)
 
-    
 
+def test_tokenizer():
+    from tokenizer import Tokenizer
+    from transformers import GPT2Tokenizer
 
+    special_token_file = {
+        "<|endoftext|>": 0,
+        "<|im_start|>": 1,
+        "<|im_end|>": 2,
+        "<repo_name>": 3,
+        "<reponame>": 4,
+        "<file_sep>": 5,
+        "<filename>": 6,
+        "<gh_stars>": 7,
+        "<issue_start>": 8,
+        "<issue_comment>": 9,
+        "<issue_closed>": 10,
+        "<jupyter_start>": 11,
+        "<jupyter_text>": 12,
+        "<jupyter_code>": 13,
+        "<jupyter_output>": 14,
+        "<jupyter_script>": 15,
+        "<empty_output>": 16,
+    }
+    tok = Tokenizer(
+        vocab_file="vocab.json",
+        merges_file="merges.txt",
+        special_tokens_file=special_token_file,
+    )
+    tok_hf = GPT2Tokenizer.from_pretrained("HuggingFaceTB/SmolLM2-135M-Instruct")
 
+    with open("taylorswift.txt", encoding="utf-8") as f:
+        text = f.read()
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    tokens_hf = tok_hf.encode(text)
+    tokens = tok.encode(text)
+
+    assert tokens_hf == tokens
+
+    tokens_decoded_hf = tok_hf.decode(tokens)
+    tokens_decoded = tok.decode(tokens)
+
+    assert tokens_decoded_hf == tokens_decoded

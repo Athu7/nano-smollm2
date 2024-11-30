@@ -2,3 +2,5 @@ __pycache__/
 .DS_Store
 model.pt
 model.safetensors
+*.txt
+*.json
