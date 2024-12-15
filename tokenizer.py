@@ -150,8 +150,31 @@ class Tokenizer:
         # print(f"convert_tokens_to_ids({tokens}) = {ids}")
         return ids
 
-    def encode(self, text):
-        return self.convert_tokens_to_ids(self.tokenize(text))
+    def encode(self, text:str | None = None, conversation:list[dict] | None = None, add_generation_prompt:bool = False):
+        end_of_turn_text = "<|im_end|>\n"
+        system_start_text = "<|im_start|>system\n"
+        user_start_text = "<|im_start|>user\n"
+        assistant_start_text = "<|im_start|>assistant\n" 
+        if conversation is not None:
+            text = ""
+            for item in conversation:
+                assert item.keys() == {"role", "content"}, "conversation key must be one of role, content"
+                role = item["role"]
+                content = item["content"]
+                if role == "system":
+                    text += system_start_text + content + end_of_turn_text
+                elif role == "user":
+                    text += user_start_text + content + end_of_turn_text
+                elif role == "assistant":
+                    text += assistant_start_text + content + end_of_turn_text
+            if add_generation_prompt:
+                text += assistant_start_text 
+            return self.convert_tokens_to_ids(self.tokenize(text))
+        elif text is not None:
+                return self.convert_tokens_to_ids(self.tokenize(text))
+        else:
+            raise ValueError("Either text or conversation must be provided")
+            
 
     def convert_ids_to_tokens(self, ids, skip_special_tokens: bool = False):
         tokens = []
