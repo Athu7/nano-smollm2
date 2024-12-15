@@ -13,7 +13,12 @@ model = hf_hub_download(repo_id=repo_id, filename="model.safetensors", local_dir
 safetensor_file = "model.safetensors"
 model_data = load_file(safetensor_file)
 
-# save the pt file
+# modify the weight names to match our model and save the pt file
+model_data = torch.load("model.pt")
+replace_key = lambda x: x.replace("model.", "")
+dic_keys = [i for i in model_data.keys()]
+for i in dic_keys:
+    model_data[replace_key(i)] = model_data.pop(i)
 torch.save(model_data, "model.pt")
 
 # download the tokenizer files
