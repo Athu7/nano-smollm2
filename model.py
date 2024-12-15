@@ -3,6 +3,8 @@ from dataclasses import dataclass
 import torch
 import torch.nn as nn
 
+from tokenizer import Tokenizer
+
 
 @dataclass
 class SmolLM2Config:
@@ -137,3 +139,16 @@ class SmolLM2(nn.Module):
         hidden = self.norm(hidden)
         logits = self.lm_head(hidden)
         return logits 
+    
+    def generate(self, tok:Tokenizer, conversation:list[dict] = None, max_tokens:int = 50):
+        device = next(self.parameters()).device
+        input_text = tok.encode(conversation=conversation, add_generation_prompt=True)
+        input_text = torch.tensor(input_text).unsqueeze(0).to(device)
+        for i in range(max_tokens):
+            logits = self(input_text)
+            last_token_logits = logits[:, -1, :]
+            max_logit_index = torch.argmax(last_token_logits, dim = -1).unsqueeze(0) #greedy decoding
+            input_text = torch.cat([input_text, max_logit_index], dim = -1)
+            if max_logit_index == tok.encoder.get(tok.eos_token):
+                break
+        return tok.decode(input_text.squeeze(0)) 
