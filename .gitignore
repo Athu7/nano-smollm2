@@ -2,5 +2,6 @@ __pycache__/
 .DS_Store
 model.pt
 model.safetensors
-*.txt
-*.json
+vocab.json
+merges.txt
+taylorswift.txt

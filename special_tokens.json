@@ -1,0 +1,19 @@
+{
+    "<|endoftext|>": 0,
+    "<|im_start|>": 1,
+    "<|im_end|>": 2,
+    "<repo_name>": 3,
+    "<reponame>": 4,
+    "<file_sep>": 5,
+    "<filename>": 6,
+    "<gh_stars>": 7,
+    "<issue_start>": 8,
+    "<issue_comment>": 9,
+    "<issue_closed>": 10,
+    "<jupyter_start>": 11,
+    "<jupyter_text>": 12,
+    "<jupyter_code>": 13,
+    "<jupyter_output>": 14,
+    "<jupyter_script>": 15,
+    "<empty_output>": 16
+}
