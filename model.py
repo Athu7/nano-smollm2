@@ -124,7 +124,7 @@ class Block(nn.Module):
 
 class SmolLM2(nn.Module):
     
-    def __init__(self, config:SmolLM2Config):
+    def __init__(self, config:SmolLM2Config = SmolLM2Config()):
         super().__init__()
         self.embed_tokens = nn.Embedding(config.vocab_size, config.n_embd, dtype = config.dtype)
         self.layers = nn.ModuleList([Block(config = config) for _ in range(config.n_layer)])
