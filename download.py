@@ -9,9 +9,10 @@ from safetensors.torch import load_file
 repo_id = "HuggingFaceTB/SmolLM2-135M-Instruct"
 model = hf_hub_download(repo_id=repo_id, filename="model.safetensors", local_dir=".")
 
-# convert safe tensors to pt
+# convert safe tensors to pt and save
 safetensor_file = "model.safetensors"
 model_data = load_file(safetensor_file)
+torch.save(model_data, "model.pt")
 
 # modify the weight names to match our model and save the pt file
 model_data = torch.load("model.pt")
