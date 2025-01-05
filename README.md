@@ -22,30 +22,18 @@ Anyone who
 python download.py
 ```
 
-### Install torch
+### Create environment and install deps 
 
 #### For CPU
 
 ```bash
-pip install torch torchvision torchaudio
+conda env create -f env.yml
 ```
 
-or
+### Activate the environment
 
 ```bash
-conda install pytorch::pytorch torchvision torchaudio -c pytorch
-```
-
-#### For GPU
-
-```bash
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-```
-
-or
-
-```bash
-conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
+conda activate ml
 ```
 
 ### Run inference with the model
