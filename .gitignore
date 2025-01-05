@@ -1,7 +1,13 @@
 __pycache__/
+data/
 .DS_Store
 model.pt
 model.safetensors
 vocab.json
 merges.txt
 taylorswift.txt
+*.excalidraw
+*.parquet
+notebook.ipynb
+dataset.ipynb
+*.bin

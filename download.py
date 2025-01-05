@@ -30,3 +30,18 @@ tokenizer_merges = hf_hub_download( repo_id=repo_id, filename="merges.txt", loca
 res = requests.get( "https://raw.githubusercontent.com/karpathy/minbpe/refs/heads/master/tests/taylorswift.txt")
 text = res.content.decode("utf-8")
 Path("taylorswift.txt").write_text(text)
+
+# download dataset parquets from huggingface_hub
+
+datafolder = Path("data")
+datafolder.mkdir(exist_ok=True)
+parquet_link = "https://huggingface.co/datasets/HuggingFaceTB/smoltalk/resolve/main/data/everyday-conversations/train-00000-of-00001.parquet"
+filename = "dataset.parquet"
+filepath = Path(filename)
+filepath = datafolder / filepath
+
+data = requests.get(parquet_link)
+if data.status_code == 200:
+    filepath.write_bytes(data.content)
+else:
+    print(f"Failed to get parquet file with link: {parquet_link}")
