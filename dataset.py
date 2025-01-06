@@ -96,7 +96,7 @@ class DataPipeline:
             # ten = torch.tensor(ids, dtype = torch.long)
             arr = np.array(ids, dtype=np.uint32)
             dataset_tokens_arr[offset: offset + leng] = arr
-            dataset_lens_arr[ind] = offset
+            dataset_lens_arr[ind] = leng 
             # # dataset_tensors["dataset"][offset : offset+leng] = ten
             # # dataset_tensors["offsets"][ind] = offset
             offset = offset + leng
