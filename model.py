@@ -132,12 +132,17 @@ class SmolLM2(nn.Module):
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, dtype = config.dtype, bias= config.bias) 
         self.lm_head.weight = self.embed_tokens.weight # weight tying
 
-    def forward(self, x:torch.Tensor):
-        hidden = self.embed_tokens(x)
+    def forward(self, inputs:torch.Tensor, targets:torch.Tensor | None = None):
+        hidden = self.embed_tokens(inputs)
         for layer in self.layers:
             hidden = layer(hidden)
         hidden = self.norm(hidden)
         logits = self.lm_head(hidden)
+        if targets is not None:
+            logits = logits.view(-1, logits.shape[-1]) # (B,T,V) -> (B*T, V)
+            targets = targets.view(-1) # (B,T) -> (B*T)
+            loss = torch.nn.functional.cross_entropy(logits, targets, ignore_index=-100)            
+            return logits, loss
         return logits 
     
     def generate(self, tok:Tokenizer, conversation:list[dict] = None, max_tokens:int = 50):

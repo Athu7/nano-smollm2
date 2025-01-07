@@ -1,10 +1,20 @@
+import torch
+from pathlib import Path
 import numpy as np
 
-class SmolLoader:
+# dataloader for causal language modelling
+class SmolLoaderLM:
     
-    def __init__(self, tokens_file:str, lens_file:str, block_size:int, batch_size:int, pad_index:int = 2):
+    def __init__(self, tokens_file:str, lens_file:str, block_size:int, batch_size:int, pad_index:int = 0, ignore_token = -100):
+
         self.tokens_file = tokens_file
+        if not Path(tokens_file).exists():
+            raise FileNotFoundError(f"{tokens_file} not found")
+         
         self.lens_file = lens_file
+        if not Path(lens_file).exists():
+            raise FileNotFoundError(f"{lens_file} not found")
+
         self.block_size = block_size
         self.bs = batch_size
         self.start = 0
@@ -12,6 +22,7 @@ class SmolLoader:
         self.epoch = 0
         self.iter = 0
         self.pad_index = pad_index
+        self.ignore_token = -100
 
     def next(self): 
         # load the memmaps of tokens and lens
@@ -52,5 +63,11 @@ class SmolLoader:
             else:
                 self.end += 1
         self.iter += 1
-        return batch
-    
+        inputs = batch[:, :-1].copy()
+        targets = batch[:, 1:].copy()
+
+        for ind,row in enumerate(targets):
+            pad_inds = np.where(row == self.pad_index)[0]   
+            targets[ind][pad_inds] = self.ignore_token #replace all pad tokens with ignore token
+
+        return torch.tensor(inputs).long(), torch.tensor(targets).long() 
