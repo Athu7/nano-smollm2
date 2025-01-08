@@ -305,3 +305,44 @@ def test_tokenizer():
     tokens_decoded = tok.decode(tokens)
 
     assert tokens_decoded_hf == tokens_decoded
+    
+    
+    
+def test_cross_entropy_loss():
+    import torch
+
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        torch.device("cpu") 
+    torch.manual_seed(0)
+
+    B,T,V= 2,6,49152
+    inps = torch.randint(V, (B, T)) 
+    inputs = inps[:, :-1].contiguous().to(device) # inputs are orig tokens shifted left
+    logits = torch.randn(B*(T-1), V) # model(inputs) | (B, T-1 ) -> (B, T-1, V) -> (B*(T-1), V) we flatten the batch
+    targets = inps[:, 1:].contiguous().to(device)  # (B, T-1 ) | targets are orig tokens shifted right
+    padded_targets = torch.where(torch.tril(targets) == 0, -100, targets).to(device)
+
+    def cross_entropy_loss(logits, targets, ignore_index = -100):
+        # logits are flattened across the batch so the shape is (B*T, V)
+        targets = targets.view(-1, 1).contiguous() # (B,T) -> (B*T, 1) | flatten the batch dim to match logits 
+        non_pad_inds = torch.where(targets != -100)[0]
+        targets = targets[non_pad_inds]
+        logits = torch.index_select(logits, 0, non_pad_inds)
+        neg_log_liklihood = -torch.log_softmax(logits, dim = -1)  # (B*T, 1) -> (B*T, 1) |  negative log liklihood of all the possible tokens
+        vals = torch.gather(neg_log_liklihood, 1, targets).squeeze(-1) # (B*T, 1) | negative log lilihood corresponding to targets
+        loss = torch.mean(vals) # (B*T, 1) -> (1) | mean over the batch and time
+        return loss
+
+    # padded input test
+    loss = torch.nn.functional.cross_entropy(logits.to(device), padded_targets.view(-1).to(device), ignore_index=-100, reduction= "mean")
+    our_loss = cross_entropy_loss(logits.to(device), padded_targets.to(device), ignore_index = -100)
+    torch.testing.assert_close(loss, our_loss)
+
+    # unpadded input test
+    loss = torch.nn.functional.cross_entropy(logits.to(device), targets.view(-1).to(device), ignore_index=-100, reduction= "mean")
+    our_loss = cross_entropy_loss(logits.to(device), targets.to(device), ignore_index = -100)
+    torch.testing.assert_close(loss, our_loss)
