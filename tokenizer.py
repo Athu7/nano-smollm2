@@ -150,7 +150,7 @@ class Tokenizer:
         # print(f"convert_tokens_to_ids({tokens}) = {ids}")
         return ids
 
-    def encode(self, text:str | None = None, conversation:list[dict] | None = None, add_generation_prompt:bool = False):
+    def encode(self, text:str = None, conversation:list[dict]  = None, add_generation_prompt:bool = False):
         end_of_turn_text = "<|im_end|>\n"
         system_start_text = "<|im_start|>system\n"
         user_start_text = "<|im_start|>user\n"

@@ -132,7 +132,7 @@ class SmolLM2(nn.Module):
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, dtype = config.dtype, bias= config.bias) 
         self.lm_head.weight = self.embed_tokens.weight # weight tying
 
-    def forward(self, inputs:torch.Tensor, targets:torch.Tensor | None = None):
+    def forward(self, inputs:torch.Tensor, targets:torch.Tensor  = None):
         hidden = self.embed_tokens(inputs)
         for layer in self.layers:
             hidden = layer(hidden)

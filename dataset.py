@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import numpy as np
 import pandas as pd
+from typing import Union
 import requests
 from huggingface_hub import hf_hub_download, list_repo_files
 
@@ -61,7 +62,7 @@ class DataPipeline:
         return {"ids": ids, "len" : len(ids)}
 
     @classmethod
-    def get_tokenized_dataset(cls, file_path:str | Path, tokenizer:Tokenizer):
+    def get_tokenized_dataset(cls, file_path:Union[str,Path], tokenizer:Tokenizer):
         if isinstance(file_path, str):
             file_path = Path()
         file_content = file_path.read_text()
