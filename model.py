@@ -1,9 +1,11 @@
 from dataclasses import dataclass
+# import math
 
 import torch
 import torch.nn as nn
 
 from tokenizer import Tokenizer
+# from flash_attn import flash_attn_qkvpacked_func, flash_attn_func
 
 
 @dataclass
@@ -73,12 +75,21 @@ class MHA(nn.Module):
         k = k.repeat_interleave(self.group_size, dim = 1) # (B, n_kv_heads, T, head_dim) -> (B, n_head, T, head_dim)
         v = v.repeat_interleave(self.group_size, dim = 1) # (B, n_kv_heads, T, head_dim) -> (B, n_head, T, head_dim)
 
+        ## ---------------- pytorch's sdpa --------------------------
         attn_out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p= 0, is_causal=True)
+        attn_out = attn_out.transpose(1,2).contiguous().view(B,T,C)
+
+        ## ----------------- flash attention -------------------------
+        # attn_out = flash_attn_func(q.transpose(1,2), k.transpose(1,2), v.transpose(1,2), dropout_p=0.0, causal=True)
+        # attn_out = attn_out.contiguous().view(B,T,C)
+
+        ## ------------------ eager attention ------------------------
         # attn_scores = (q @ k.transpose(-1, -2)) * (1.0 / math.sqrt(k.size(-1)))
         # attn_scores = torch.masked_fill(attn_scores, self.mask[:,:, :T,:T]== 0, float("-inf"))
         # attn_scores = torch.nn.functional.softmax(attn_scores, dim = -1)
         # attn_out = attn_scores @ v
-        attn_out = attn_out.transpose(1,2).contiguous().view(B,T,C)
+        # attn_out = attn_out.transpose(1,2).contiguous().view(B,T,C)
+
         attn_out = self.o_proj(attn_out)
         return attn_out
 
