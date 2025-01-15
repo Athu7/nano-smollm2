@@ -1,8 +1,9 @@
-from pathlib import Path
-
-import numpy as np
 import torch
 
+import time
+from pathlib import Path
+import numpy as np
+from model import SmolLM2
 
 # dataloader for causal language modelling
 class SmolLoaderLM:
@@ -75,4 +76,48 @@ class SmolLoaderLM:
             targets[ind][pad_inds] = self.ignore_token #replace all pad tokens with ignore token
 
         return torch.tensor(inputs).long(), torch.tensor(targets).long() 
-        return torch.tensor(inputs).long(), torch.tensor(targets).long() 
+    
+
+block_size = 1024
+batch_size = 4
+learning_rate = 3e-4
+
+seed = 0
+
+loader = SmolLoaderLM(tokens_file = "dataset_tokens.bin", lens_file = "dataset_lens.bin", batch_size = batch_size, block_size = block_size)
+inps, targets = loader.next()
+
+# set the device
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+elif torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    torch.device("cpu") 
+
+# set the seed
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed) if torch.cuda.is_available() else None
+
+model = SmolLM2()
+model.load_state_dict(torch.load("model.pt"), strict = False)
+model = model.to(device)
+# model = torch.compile(model)
+
+optimizer = torch.optim.AdamW(params = model.parameters(), lr=learning_rate)
+
+for i in range(94):
+    t1 = time.perf_counter()
+    x,y = loader.next()
+    x,y = x.to(device), y.to(device)
+    optimizer.zero_grad()
+    logits, loss = model(x,y)
+    loss.backward()
+
+    optimizer.step()
+    torch.cuda.synchronize()
+    t2 = time.perf_counter()
+    dt = (t2 - t1) * 1000
+    tokens_per_sec = (loader.bs * loader.block_size) / (t2-t1)
+    print(f"step {i}, loss: {loss.item():.4f}, dt: {dt:.2f}, tok/sec: {tokens_per_sec:.2f}")
+
