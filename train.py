@@ -1,5 +1,5 @@
 import torch
-
+import inspect
 import time
 from pathlib import Path
 import numpy as np
@@ -81,7 +81,7 @@ class SmolLoaderLM:
 block_size = 1024
 batch_size = 4
 learning_rate = 3e-4
-
+weight_decay = 1e-1
 seed = 0
 
 loader = SmolLoaderLM(tokens_file = "dataset_tokens.bin", lens_file = "dataset_lens.bin", batch_size = batch_size, block_size = block_size)
@@ -104,7 +104,33 @@ model.load_state_dict(torch.load("model.pt"), strict = False)
 model = model.to(device)
 # model = torch.compile(model)
 
-optimizer = torch.optim.AdamW(params = model.parameters(), lr=learning_rate)
+
+def get_optimizer(model, weight_decay, learning_rate, device):
+    param_dict = {pn : p for pn, p in model.named_parameters()}
+    param_dict = {pn : p for pn, p in param_dict.items() if p.requires_grad}
+
+    decay_params = [p for n,p in param_dict.items() if p.dim() >= 2]
+    nodecay_params = [p for n,p in param_dict.items() if p.dim() < 2]
+
+    optim_groups = [
+        {'params': decay_params, 'weight_decay' : weight_decay},
+        {'params': nodecay_params, 'weight_decay' : 0.0}
+    ]
+    num_decay_params = sum(p.numel() for p in decay_params)
+    num_nodecay_params = sum(p.numel() for p in nodecay_params)
+
+    print(f"num_decay_params: {num_decay_params}")
+    print(f"num_nodecay_params: {num_nodecay_params}")
+
+    fused_available = "fused" in inspect.signature(torch.optim.AdamW).parameters
+    use_fused = fused_available and device.type == "cuda"
+
+    print(f"using fused adam: {use_fused}")
+    optimizer = torch.optim.AdamW(optim_groups, lr = learning_rate, betas = (0.9, 0.95), eps = 1e-8, fused = use_fused)
+
+    return optimizer
+    
+optimizer = get_optimizer(model = model, weight_decay=weight_decay, learning_rate=learning_rate, device = device)
 
 for i in range(94):
     t1 = time.perf_counter()
@@ -113,7 +139,7 @@ for i in range(94):
     optimizer.zero_grad()
     logits, loss = model(x,y)
     loss.backward()
-
+    
     optimizer.step()
     torch.cuda.synchronize()
     t2 = time.perf_counter()
