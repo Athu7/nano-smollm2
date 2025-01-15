@@ -139,11 +139,10 @@ for i in range(94):
     optimizer.zero_grad()
     logits, loss = model(x,y)
     loss.backward()
-    
+    norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # gradient clipping
     optimizer.step()
     torch.cuda.synchronize()
     t2 = time.perf_counter()
     dt = (t2 - t1) * 1000
     tokens_per_sec = (loader.bs * loader.block_size) / (t2-t1)
-    print(f"step {i}, loss: {loss.item():.4f}, dt: {dt:.2f}, tok/sec: {tokens_per_sec:.2f}")
-
+    print(f"step {i}, loss: {loss.item():.4f}, dt: {dt:.2f}, tok/sec: {tokens_per_sec:.2f}, norm: {norm:.4f}")
