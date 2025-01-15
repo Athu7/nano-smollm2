@@ -1,6 +1,8 @@
-import torch
 from pathlib import Path
+
 import numpy as np
+import torch
+
 
 # dataloader for causal language modelling
 class SmolLoaderLM:
@@ -29,14 +31,6 @@ class SmolLoaderLM:
         tokens = np.memmap(self.tokens_file, dtype=np.uint32, mode='r') # memmap of all the tokens in our dataset
         lens = np.memmap(self.lens_file, dtype=np.uint32, mode='r') # memmap of the lengths of each example in our dataset
 
-        try:
-            _ = lens[self.end] # try to fetch the end index
-        except IndexError:
-            #TODO: Skipping the last batch for now
-            self.start = 0
-            self.end = 1
-            self.epoch += 1
-
         cbs = 0 #to store the elements added to the batch 
         batch= np.zeros(shape=(self.bs, self.block_size)) # temp array to store the batch
         while cbs < self.bs:
@@ -62,6 +56,16 @@ class SmolLoaderLM:
                     self.end += 1
             else:
                 self.end += 1
+                try:
+                    _ = lens[self.end] # try to fetch the end index
+                except IndexError:
+                    #TODO: Skipping the last batch for now
+                    self.start = 0
+                    self.end = 1
+                    self.epoch += 1
+
+
+            # print(self.start, self.end, curr_len)
         self.iter += 1
         inputs = batch[:, :-1].copy()
         targets = batch[:, 1:].copy()
@@ -70,4 +74,5 @@ class SmolLoaderLM:
             pad_inds = np.where(row == self.pad_index)[0]   
             targets[ind][pad_inds] = self.ignore_token #replace all pad tokens with ignore token
 
+        return torch.tensor(inputs).long(), torch.tensor(targets).long() 
         return torch.tensor(inputs).long(), torch.tensor(targets).long() 
