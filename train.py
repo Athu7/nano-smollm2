@@ -1,4 +1,5 @@
 import torch
+import math
 import inspect
 import time
 from pathlib import Path
@@ -76,34 +77,6 @@ class SmolLoaderLM:
             targets[ind][pad_inds] = self.ignore_token #replace all pad tokens with ignore token
 
         return torch.tensor(inputs).long(), torch.tensor(targets).long() 
-    
-
-block_size = 1024
-batch_size = 4
-learning_rate = 3e-4
-weight_decay = 1e-1
-seed = 0
-
-loader = SmolLoaderLM(tokens_file = "dataset_tokens.bin", lens_file = "dataset_lens.bin", batch_size = batch_size, block_size = block_size)
-inps, targets = loader.next()
-
-# set the device
-if torch.backends.mps.is_available():
-    device = torch.device("mps")
-elif torch.cuda.is_available():
-    device = torch.device("cuda")
-else:
-    torch.device("cpu") 
-
-# set the seed
-torch.manual_seed(seed)
-torch.cuda.manual_seed(seed) if torch.cuda.is_available() else None
-
-model = SmolLM2()
-model.load_state_dict(torch.load("model.pt"), strict = False)
-model = model.to(device)
-# model = torch.compile(model)
-
 
 def get_optimizer(model, weight_decay, learning_rate, device):
     param_dict = {pn : p for pn, p in model.named_parameters()}
@@ -129,20 +102,83 @@ def get_optimizer(model, weight_decay, learning_rate, device):
     optimizer = torch.optim.AdamW(optim_groups, lr = learning_rate, betas = (0.9, 0.95), eps = 1e-8, fused = use_fused)
 
     return optimizer
+
+class CosineDecayScheduler:
     
+    def __init__(self, max_steps, warmup_steps, max_lr):
+        self.max_steps = max_steps
+        self.warmup_steps = warmup_steps
+        self.max_lr = max_lr
+        self.min_lr = max_lr * 0.1
+
+    def get_lr(self, step):
+        if step < self.warmup_steps:
+            lr = self.max_lr * (step + 1) / self.warmup_steps
+            return lr
+
+        elif step > self.max_steps:
+            return self.min_lr
+
+        else:
+            decay_ratio = (step - self.warmup_steps) / (self.max_steps - self.warmup_steps) # 0 -> 1
+            assert 0 <= decay_ratio <= 1
+            coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # 1 -> 0 
+            lr = self.min_lr + coeff * (self.max_lr - self.min_lr) # max_lr -> min_lr with cosine decay
+            return lr 
+
+
+block_size = 1024
+batch_size = 4
+learning_rate = 3e-4
+weight_decay = 1e-1
+max_steps = 100
+warmup_steps = 10
+seed = 0
+
+# set the seed
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed) if torch.cuda.is_available() else None
+
+# set the device
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+elif torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    torch.device("cpu") 
+
+# load the dataset
+loader = SmolLoaderLM(tokens_file = "dataset_tokens.bin", lens_file = "dataset_lens.bin", batch_size = batch_size, block_size = block_size)
+
+
+# load the model
+model = SmolLM2()
+model.load_state_dict(torch.load("model.pt"), strict = False)
+model = model.to(device)
+model = torch.compile(model) # compile the model
+
+
+# configure the optimizer
 optimizer = get_optimizer(model = model, weight_decay=weight_decay, learning_rate=learning_rate, device = device)
 
-for i in range(94):
+# configure the scheduler
+scheduler = CosineDecayScheduler(max_steps = max_steps, warmup_steps=warmup_steps, max_lr = learning_rate)
+
+# train 
+for step in range(max_steps):
     t1 = time.perf_counter()
     x,y = loader.next()
     x,y = x.to(device), y.to(device)
     optimizer.zero_grad()
-    logits, loss = model(x,y)
-    loss.backward()
+    logits, loss = model(x,y) # forward pass
+    loss.backward() # calculate gradients
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # gradient clipping
-    optimizer.step()
-    torch.cuda.synchronize()
+    lr = scheduler.get_lr(step = step) # get lr according to current step
+    for param_group in optimizer.param_groups: param_group["lr"] = lr # set the obtained lr for the parameters
+    optimizer.step() # update paramaters
+    torch.cuda.synchronize() # wait till the gpu completes the computation
     t2 = time.perf_counter()
     dt = (t2 - t1) * 1000
     tokens_per_sec = (loader.bs * loader.block_size) / (t2-t1)
-    print(f"step {i}, loss: {loss.item():.4f}, dt: {dt:.2f}, tok/sec: {tokens_per_sec:.2f}, norm: {norm:.4f}")
+    print(f"step {step} loss: {loss.item():.4f}, lr: {lr:.7f}, dt: {dt:.2f}, tok/sec: {tokens_per_sec:.2f}, norm: {norm:.4f}")
