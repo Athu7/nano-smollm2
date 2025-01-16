@@ -22,18 +22,13 @@ Anyone who
 python download.py
 ```
 
-### Create environment and install deps 
-
-#### For CPU
+### Create environment and install deps
 
 ```bash
-conda env create -f env.yml
-```
-
-### Activate the environment
-
-```bash
-conda activate ml
+pip install uv
+uv venv ml --python 3.9
+source ml/bin/activate
+uv pip install torch torchvision torchaudio regex safetensors pyarrow pandas huggingface_hub requests
 ```
 
 ### Run inference with the model
