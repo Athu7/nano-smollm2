@@ -127,13 +127,18 @@ class CosineDecayScheduler:
             return lr 
 
 
-block_size = 1024
-batch_size = 4
 learning_rate = 3e-4
 weight_decay = 1e-1
 max_steps = 100
 warmup_steps = 10
 seed = 0
+world_size = 1
+block_size = 1024
+batch_size = 4
+desired_batch_size = 8
+actual_batch_size = batch_size * world_size 
+assert desired_batch_size % actual_batch_size == 0, f"desired_batch_size {desired_batch_size} should be divisible by {actual_batch_size} (bs * world_size)"
+gradient_accum_steps = int(desired_batch_size / actual_batch_size)
 
 # set the seed
 np.random.seed(seed)
@@ -151,7 +156,6 @@ else:
 # load the dataset
 loader = SmolLoaderLM(tokens_file = "dataset_tokens.bin", lens_file = "dataset_lens.bin", batch_size = batch_size, block_size = block_size)
 
-
 # load the model
 model = SmolLM2()
 model.load_state_dict(torch.load("model.pt"), strict = False)
@@ -168,17 +172,21 @@ scheduler = CosineDecayScheduler(max_steps = max_steps, warmup_steps=warmup_step
 # train 
 for step in range(max_steps):
     t1 = time.perf_counter()
-    x,y = loader.next()
-    x,y = x.to(device), y.to(device)
     optimizer.zero_grad()
-    logits, loss = model(x,y) # forward pass
-    loss.backward() # calculate gradients
+    loss_accum = 0
+    for micro_step in range(gradient_accum_steps):
+        x,y = loader.next()
+        x,y = x.to(device), y.to(device)
+        logits, loss = model(x,y) # forward pass
+        loss = loss / gradient_accum_steps # normalize the loss by grad_accum_steps 
+        loss_accum += loss.detach()
+        loss.backward() # accumulate the gradients
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # gradient clipping
     lr = scheduler.get_lr(step = step) # get lr according to current step
     for param_group in optimizer.param_groups: param_group["lr"] = lr # set the obtained lr for the parameters
     optimizer.step() # update paramaters
     torch.cuda.synchronize() # wait till the gpu completes the computation
     t2 = time.perf_counter()
-    dt = (t2 - t1) * 1000
-    tokens_per_sec = (loader.bs * loader.block_size) / (t2-t1)
-    print(f"step {step} loss: {loss.item():.4f}, lr: {lr:.7f}, dt: {dt:.2f}, tok/sec: {tokens_per_sec:.2f}, norm: {norm:.4f}")
+    dt = t2 - t1
+    tokens_per_sec = (loader.bs * loader.block_size * gradient_accum_steps) / dt
+    print(f"step {step} loss: {loss_accum.item():.4f}, lr: {lr:.7f}, dt: {dt:.2f}, tok/sec: {tokens_per_sec:.2f}, norm: {norm:.4f}")
