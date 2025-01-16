@@ -16,12 +16,6 @@ Anyone who
 
 ## Quick start
 
-### Download model weights, tokenizer files
-
-```bash
-python download.py
-```
-
 ### Create environment and install deps
 
 ```bash
@@ -29,6 +23,18 @@ pip install uv
 uv venv ml --python 3.9
 source ml/bin/activate
 uv pip install torch torchvision torchaudio regex safetensors pyarrow pandas huggingface_hub requests
+```
+
+### Download model weights, tokenizer files
+
+```bash
+python download.py
+```
+
+### Download smoltalk dataset sample
+
+```bash
+python dataset.py
 ```
 
 ### Run inference with the model
