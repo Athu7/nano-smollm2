@@ -42,11 +42,14 @@ python dataset.py
 ```python
 import torch
 from tokenizer import Tokenizer
-from model import SmolLM2
+from model import SmolLM2, SmolLM2Config
 
 # load model 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu") 
-model = SmolLM2()
+## you can load the 360M version using the config below
+# config_360M =  SmolLM2Config(n_embd= 960, n_hidden=2560, bias = False, block_size=8192, n_layer=32, n_head=15, n_kv_heads=5, norm_eps=1e-05, dtype=torch.bfloat16, rope_theta=100000, vocab_size=49152)
+# model = SmolLM2(config = config_360M)
+model = SmolLM2() # this will use the default 135M config
 model.load_state_dict(torch.load("model.pt"), strict = False)
 model = model.to(device)
 

@@ -7,6 +7,7 @@ from safetensors.torch import load_file
 
 # download from hf
 repo_id = "HuggingFaceTB/SmolLM2-135M-Instruct"
+# repo_id = "HuggingFaceTB/SmolLM2-360M-Instruct"
 model = hf_hub_download(repo_id=repo_id, filename="model.safetensors", local_dir=".")
 
 # convert safe tensors to pt and save
