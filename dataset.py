@@ -91,13 +91,15 @@ class DataPipeline:
         dataset_lens_arr = np.memmap("dataset_lens.bin", dtype = np.uint32, mode = "w+", shape = (len(entire_dataset,)))
         # dataset_tensors = { "dataset" : torch.zeros(dataset_size).long(), "offsets" : torch.zeros(len(tokenized_dataset)).long() }
         offset = 0
+        cum_leng = 0
         for ind,i in enumerate(entire_dataset):
             leng = i["len"]
             ids = i["ids"]
             # ten = torch.tensor(ids, dtype = torch.long)
+            cum_leng = cum_leng + leng
             arr = np.array(ids, dtype=np.uint32)
             dataset_tokens_arr[offset: offset + leng] = arr
-            dataset_lens_arr[ind] = leng 
+            dataset_lens_arr[ind] = cum_leng
             # # dataset_tensors["dataset"][offset : offset+leng] = ten
             # # dataset_tensors["offsets"][ind] = offset
             offset = offset + leng

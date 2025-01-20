@@ -36,12 +36,12 @@ class SmolLoaderLM:
         cbs = 0 #to store the elements added to the batch 
         batch= np.zeros(shape=(self.bs, self.block_size)) # temp array to store the batch
         while cbs < self.bs:
-            tok_end = np.sum(lens[0:self.end]) # tokens end index
-            tok_start = np.sum(lens[0:self.start]) # tokens start index
+            tok_end = lens[self.end] # tokens end index
+            tok_start = lens[self.start] # tokens start index
             curr_len = tok_end - tok_start
             if curr_len >= self.block_size: # means we have got a packed example for out batch
                 if self.start != self.end - 1: 
-                    ex = tokens[tok_start:np.sum(lens[0:self.end-1])] # get the packed tokens leaving the last which exceeded the block size
+                    ex = tokens[tok_start:lens[self.end-1]] # get the packed tokens leaving the last which exceeded the block size
                     diff = self.block_size - ex.shape[0]  # get the amount of pad tokens to insert
                     pad = np.full(diff, self.pad_index) # create the pad array
                     ex = np.concatenate((ex, pad)) # get the packed padded example 
@@ -50,7 +50,7 @@ class SmolLoaderLM:
                     self.start = self.end - 1
 
                 else:  # single example is greater than the block size
-                    ex = tokens[np.sum(lens[0:self.start]):np.sum(lens[0:self.end])]
+                    ex = tokens[lens[self.start]:lens[self.end]]
                     ex = ex[0:self.block_size] # trim the example to block size
                     batch[cbs] = ex # append to the batch
                     cbs += 1 # increase the batchsize count
